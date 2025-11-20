@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Crop & Size Finder (Fixed 500×500)</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Cropper CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet" />
+
+    <style>
+        body {
+            background: #f7f9fc;
+            padding: 20px;
+        }
+
+        .container-box {
+            max-width: 750px;
+            margin: auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Fixed crop-box wrapper */
+        .crop-box {
+            width: 550px;
+            height: 550px;
+            overflow: hidden;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+
+        /* Image inside crop box */
+        .crop-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .result-img {
+            border: 2px dashed #ddd;
+            padding: 10px;
+            width: 220px;
+            background: #fafafa;
+            border-radius: 6px;
+        }
+
+        #errorMsg {
+            color: #e63946;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container-box">
+        <form action="" method="POST" enctype="multipart/form-data">
+            <picture>
+                <img id="preview" src="../../public/defualt/defualt.jpg" alt=""
+                    style="width:100%; height: 200px; object-fit:contain;">
+            </picture><br>
+
+            <div class="d-flex">
+                <label class="form-label">Image</label>
+            </div>
+
+            <input type="file" class="form-control" id="imageInput" accept="image/*" name="image">
+            <button type="submit">Save</button>
+        </form>
+
+        <!-- Modal for Cropper -->
+        <div class="modal fade" id="cropModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Crop Image</h5>
+                    </div>
+                    <div class="modal-body d-flex justify-content-center">
+                        <!-- Fixed 500×500 crop box -->
+                        <div class="crop-box">
+                            <img id="image" style="max-width:100%; max-height:100%;">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button id="cropBtn" class="btn btn-primary">Crop & Generate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p id="errorMsg"></p>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Cropper JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <script>
+        let cropper;
+        const input = document.getElementById("imageInput");
+        const image = document.getElementById("image");
+        const preview = document.getElementById("preview");
+        const cropBtn = document.getElementById("cropBtn");
+        const errorMsg = document.getElementById("errorMsg");
+        const modalEl = document.getElementById('cropModal');
+        const modal = new bootstrap.Modal(modalEl);
+
+        // Image select
+        input.addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+            image.src = url;
+
+            modal.show();
+
+            // Initialize Cropper after modal shown
+            modalEl.addEventListener('shown.bs.modal', function handler() {
+                if (cropper) cropper.destroy();
+
+                cropper = new Cropper(image, {
+                    aspectRatio: 200 / 150,
+                    viewMode: 1,
+                    autoCropArea: 1,
+                    dragMode: 'move',
+                    background: false,
+                    responsive: false,
+                    minContainerWidth: 500,
+                    minContainerHeight: 500,
+                });
+
+                modalEl.removeEventListener('shown.bs.modal', handler);
+            });
+        });
+
+        // Crop & generate
+        cropBtn.addEventListener("click", function () {
+            const canvas = cropper.getCroppedCanvas({
+                width: 500,
+                height: 500
+            });
+
+            // Preview
+            preview.src = canvas.toDataURL("image/jpeg", 0.9);
+
+            // File size check
+            canvas.toBlob(function (blob) {
+                const sizeKB = (blob.size / 1024).toFixed(2);
+
+                if (sizeKB > 250) {
+                    errorMsg.innerText = "⚠️ File size exceeds 250KB!";
+                } else {
+                    errorMsg.innerText = "";
+                }
+            }, "image/jpeg", 0.9);
+
+            modal.hide();
+        });
+    </script>
+
+</body>
+
+</html>
+
+
+
+<div class="col-12 col-lg-6 col-md-12">
+    <div class="card shadow-sm border-0 rounded-3">
+        <!-- Header -->
+        <div class="p-2 bg-primary text-white rounded-top">
+            <h4 class="header-title mb-1">Update Your Profile Picture</h4>
+            <p class="mb-0 small">Choose a new image to personalize your profile</p>
+        </div>
+
+        <!-- Body -->
+        <div class="card-body ">
+
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet" />
+            <div class="container-box">
+                <form role="form" action="{{ route('profile.image') }}" method="POST" enctype="multipart/form-data"
+                    id="cropForm">
+                    @csrf
+                    <picture>
+                        <img id="preview" src="{{ Auth::user()->image == 'default.jpg'
+                                            ? asset('asset/dashboard/image/default.jpg')
+                                            : asset('asset/dashboard/image/profile/' . Auth::user()->image) }}" alt=""
+                            style="width:100%; height: 200px; object-fit:contain;">
+                    </picture><br>
+
+
+                    <input type="file" class="form-control mt-3 @error('image')  is-invalid  @enderror" id="imageInput"
+                        accept="image/*" name="image">
+                    @error('image')
+                    <p class="text-danger">{{ $message }}</p>
+                    @enderror
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary px-4 mt-3">Submit</button>
+                    </div>
+                </form>
+
+                <!-- Modal for Cropper -->
+                <div class="modal fade" id="cropModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Crop Image</h5>
+                            </div>
+                            <div class="modal-body d-flex justify-content-center">
+                                <div class="crop-box">
+                                    <img id="image" style="max-width:100%; max-height:100%;">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button id="cropBtn" class="btn btn-primary" type="button">Crop &
+                                    Generate</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="errorMsg"></p>
+            </div>
+
+            <!-- Bootstrap JS -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+            <!-- Cropper JS -->
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+            <script>
+                let cropper;
+                const input = document.getElementById("imageInput");
+                const image = document.getElementById("image");
+                const preview = document.getElementById("preview");
+                const cropBtn = document.getElementById("cropBtn");
+                const errorMsg = document.getElementById("errorMsg");
+                const modalEl = document.getElementById('cropModal');
+                const modal = new bootstrap.Modal(modalEl);
+                const form = document.getElementById('cropForm');
+
+                // When a new file is selected
+                input.addEventListener("change", function (e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const url = URL.createObjectURL(file);
+                    image.src = url;
+                    modal.show();
+
+                    // Initialize Cropper after modal is shown
+                    modalEl.addEventListener('shown.bs.modal', function handler() {
+                        if (cropper) cropper.destroy();
+
+                        cropper = new Cropper(image, {
+                            aspectRatio: 200 / 200,
+                            viewMode: 1,
+                            autoCropArea: 1,
+                            dragMode: 'move',
+                            background: false,
+                            responsive: false,
+                            minContainerWidth: 500,
+                            minContainerHeight: 500,
+                        });
+
+                        modalEl.removeEventListener('shown.bs.modal', handler);
+                    });
+                });
+
+                // When Crop button is clicked
+                cropBtn.addEventListener("click", function () {
+                    const canvas = cropper.getCroppedCanvas({
+                        width: 500,
+                        height: 500
+                    });
+
+                    // Preview cropped image
+                    preview.src = canvas.toDataURL("image/jpeg", 0.9);
+
+                    // Convert cropped canvas to Blob and replace file input
+                    canvas.toBlob(function (blob) {
+                        const sizeKB = (blob.size / 1024).toFixed(2);
+
+                        if (sizeKB > 250) {
+                            errorMsg.innerText = "⚠️ File size exceeds 250KB!";
+                        } else {
+                            errorMsg.innerText = "";
+
+                            // Replace the file input with cropped blob
+                            const file = new File([blob], "cropped.jpg", {
+                                type: "image/jpeg"
+                            });
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            input.files = dataTransfer.files;
+
+                            modal.hide();
+                        }
+                    }, "image/jpeg", 0.9);
+                });
+            </script>
+
+        </div>
+    </div>
+</div>
